@@ -22,7 +22,7 @@ case $1 in
         PLATFORM="386"
         ;;
     *)
-        echo "DockerInit: unsupported architecture '$1'" >&2
+        echo "DockerInit：不支持的架构 '$1'" >&2
         exit 1
         ;;
 esac
@@ -47,7 +47,7 @@ case $PLATFORM in
 esac
 MTG_MULTI_VER=$(curl -sfL "https://api.github.com/repos/mhsanaei/mtg-multi/releases/latest" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1)
 if [ -z "$MTG_MULTI_VER" ]; then
-    echo "DockerInit: could not resolve the latest mtg-multi release tag" >&2
+    echo "DockerInit：无法解析最新的 mtg-multi 发布标签" >&2
     exit 1
 fi
 mkdir -p build/bin

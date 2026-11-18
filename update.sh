@@ -66,12 +66,12 @@ trap 'exit 143' TERM
 trap 'exit 130' INT
 
 # check root
-[[ $EUID -ne 0 ]] && _fail "FATAL ERROR: Please run this script with root privilege."
+[[ $EUID -ne 0 ]] && _fail "严重错误：请以 root 权限运行此脚本。"
 
 if _command_exists curl; then
     curl_bin=$(which curl)
 else
-    _fail "ERROR: Command 'curl' not found."
+    _fail "错误：未找到命令 'curl'。"
 fi
 # The panel sets XUI_UPDATE_PROXY to its egress bridge's socks5h URL for the GitHub downloads.
 # The IP lookups use plain curl so they still report this server's own address.
@@ -85,9 +85,9 @@ elif [[ -f /usr/lib/os-release ]]; then
     source /usr/lib/os-release
     release=$ID
 else
-    _fail "Failed to check the system OS, please contact the author!"
+    _fail "无法检测系统 OS，请联系作者！"
 fi
-echo "The OS release is: $release"
+echo "系统发行版为：$release"
 
 arch() {
     case "$(uname -m)" in
@@ -98,11 +98,11 @@ arch() {
         armv6* | armv6) echo 'armv6' ;;
         armv5* | armv5) echo 'armv5' ;;
         s390x) echo 's390x' ;;
-        *) echo -e "${red}Unsupported CPU architecture!${plain}" && rm -f "${cur_dir}/${script_name}" > /dev/null 2>&1 && exit 2 ;;
+        *) echo -e "${red}不支持的 CPU 架构！${plain}" && rm -f "${cur_dir}/${script_name}" > /dev/null 2>&1 && exit 2 ;;
     esac
 }
 
-echo "Arch: $(arch)"
+echo "架构：$(arch)"
 
 gen_random_string() {
     local length="$1"
@@ -137,7 +137,7 @@ load_xui_env() {
 }
 
 install_base() {
-    echo -e "${green}Updating and install dependency packages...${plain}"
+    echo -e "${green}正在更新并安装依赖包...${plain}"
     case "${release}" in
         ubuntu | debian | armbian)
             apt-get update > /dev/null 2>&1 && apt-get install -y -q cron curl tar tzdata socat openssl > /dev/null 2>&1
@@ -170,7 +170,7 @@ install_base() {
 config_after_update() {
     local panel_needs_restart=0
 
-    echo -e "${yellow}x-ui settings:${plain}"
+    echo -e "${yellow}x-ui 设置：${plain}"
     ${xui_folder}/x-ui setting -show true
     ${xui_folder}/x-ui migrate
 
@@ -187,7 +187,7 @@ config_after_update() {
                 if (failed || credentials != 1 || ports != 1 || paths != 1 || (path != "" && path !~ /^\//)) exit 1
                 print path
             }'); then
-        echo -e "${red}Unable to read webBasePath; leaving existing settings unchanged.${plain}" >&2
+        echo -e "${red}无法读取 webBasePath；现有设置保持不变。${plain}" >&2
         return 1
     fi
     existing_webBasePath=${existing_webBasePath#/}
@@ -221,12 +221,12 @@ config_after_update() {
 
     # Only an unset or default root path needs initialization.
     if [[ -z "$existing_webBasePath" ]]; then
-        echo -e "${yellow}WebBasePath is missing or set to root. Generating a new one...${plain}"
+        echo -e "${yellow}WebBasePath 缺失或被设为根路径。正在生成新的...${plain}"
         local config_webBasePath=$(gen_random_string 18)
         ${xui_folder}/x-ui setting -webBasePath "${config_webBasePath}"
         existing_webBasePath="${config_webBasePath}"
         panel_needs_restart=1
-        echo -e "${green}New WebBasePath: ${config_webBasePath}${plain}"
+        echo -e "${green}新的 WebBasePath：${config_webBasePath}${plain}"
     fi
 
     # An update only updates the panel: TLS stays exactly as configured. Set it up
@@ -238,17 +238,17 @@ config_after_update() {
     fi
     echo ""
     echo -e "${green}═══════════════════════════════════════════${plain}"
-    echo -e "${green}     Panel Access Information              ${plain}"
+    echo -e "${green}     面板访问信息                          ${plain}"
     echo -e "${green}═══════════════════════════════════════════${plain}"
-    echo -e "${green}Access URL: ${access_scheme}://${access_host}:${existing_port}/${existing_webBasePath}${plain}"
+    echo -e "${green}访问地址：${access_scheme}://${access_host}:${existing_port}/${existing_webBasePath}${plain}"
     echo -e "${green}═══════════════════════════════════════════${plain}"
     if [[ -z "$existing_cert" ]]; then
-        echo -e "${yellow}No SSL certificate is configured; the panel is served over HTTP.${plain}"
-        echo -e "${yellow}Run 'x-ui' and choose SSL Certificate Management to set one up.${plain}"
+        echo -e "${yellow}未配置 SSL 证书；面板通过 HTTP 提供服务。${plain}"
+        echo -e "${yellow}运行 'x-ui' 并选择 SSL 证书管理进行配置。${plain}"
     fi
 
     if [[ "$panel_needs_restart" -eq 1 ]]; then
-        echo -e "${yellow}Restarting panel to apply the new web base path...${plain}"
+        echo -e "${yellow}正在重启面板以应用新的 WebBasePath...${plain}"
         systemctl restart x-ui 2> /dev/null || rc-service x-ui restart 2> /dev/null
     fi
 }
@@ -262,27 +262,27 @@ config_after_update() {
 # persisted env file, so a deliberate opt-out survives updates).
 setup_fail2ban() {
     if [[ -n "${XUI_ENABLE_FAIL2BAN+x}" && "${XUI_ENABLE_FAIL2BAN}" != "true" ]]; then
-        echo -e "${yellow}XUI_ENABLE_FAIL2BAN=${XUI_ENABLE_FAIL2BAN}, skipping Fail2ban auto-setup.${plain}"
+        echo -e "${yellow}XUI_ENABLE_FAIL2BAN=${XUI_ENABLE_FAIL2BAN}，跳过 Fail2ban 自动配置。${plain}"
         return 0
     fi
 
     if [[ ! -x /usr/bin/x-ui ]]; then
-        echo -e "${yellow}x-ui CLI not found; skipping Fail2ban auto-setup.${plain}"
+        echo -e "${yellow}未找到 x-ui CLI；跳过 Fail2ban 自动配置。${plain}"
         return 0
     fi
 
     # Scripts older than v3.4.0 have no setup-fail2ban and exit 0 from the
     # usage banner, which would read as success here.
     if ! grep -q '"setup-fail2ban")' /usr/bin/x-ui; then
-        echo -e "${yellow}This x-ui.sh predates 'x-ui setup-fail2ban'; skipping Fail2ban auto-setup.${plain}"
+        echo -e "${yellow}此 x-ui.sh 版本早于 'x-ui setup-fail2ban'；跳过 Fail2ban 自动配置。${plain}"
         return 0
     fi
 
-    echo -e "${green}Setting up Fail2ban for the IP Limit feature...${plain}"
+    echo -e "${green}正在为 IP 限制功能配置 Fail2ban...${plain}"
     if /usr/bin/x-ui setup-fail2ban; then
-        echo -e "${green}Fail2ban setup complete.${plain}"
+        echo -e "${green}Fail2ban 配置完成。${plain}"
     else
-        echo -e "${yellow}Fail2ban setup did not finish; IP Limit stays disabled until you run 'x-ui' and open the IP Limit menu. Continuing.${plain}"
+        echo -e "${yellow}Fail2ban 配置未完成；IP 限制将保持禁用，直到你运行 'x-ui' 并打开 IP 限制菜单。继续。${plain}"
     fi
     return 0
 }
@@ -302,7 +302,7 @@ require_writable_update_paths() {
         # permission bit means little and the test only reflects the file mode
         # and the mount flags, not an immutable attribute or a full filesystem.
         if ! : > "$probe" 2> /dev/null; then
-            _fail "ERROR: ${dir} is not writable for this process (read-only mount, attribute or full filesystem). The panel's fallback updater cannot run inside the hardened systemd sandbox; update from the panel UI (which uses systemd-run) or run 'x-ui update' in a shell."
+            _fail "错误：${dir} 对当前进程不可写（只读挂载、文件属性或文件系统已满）。面板的备用更新程序无法在加固的 systemd 沙箱内运行；请从面板界面更新（使用 systemd-run），或在终端中运行 'x-ui update'。"
         fi
         rm -f "$probe"
     done
@@ -344,12 +344,12 @@ _xui_warn_unsupported_hardening() {
         fi
     done
     [[ -n "$missing" ]] || return 0
-    echo -e "${yellow}Note: systemd ${version} ignores part of the hardening in x-ui.service; the panel still starts.${plain}"
-    echo "      Not applied, needs a newer systemd: ${missing}."
+    echo -e "${yellow}注意：systemd ${version} 会忽略 x-ui.service 中的部分加固配置；面板仍可启动。${plain}"
+    echo "      未应用，需要更新的 systemd：${missing}。"
     if [[ "$version" -lt 231 ]]; then
-        echo "      The panel's folders stay writable through ReadWriteDirectories=, the alias this script installs."
+        echo "      面板目录仍可通过 ReadWriteDirectories= 保持可写，这是本脚本安装的别名配置。"
     fi
-    echo "      The rest of the hardening is in force. Upgrade systemd to apply the above."
+    echo "      其余加固配置仍然生效。请升级 systemd 以应用上述配置。"
     return 0
 }
 
@@ -419,9 +419,9 @@ _xui_service_write_paths_dropin() {
         line="${line} -${escaped_path}"
     done
     if [[ -n "$whitespace_paths" ]]; then
-        echo "Warning: these folders contain whitespace and were left out of" >&2
-        echo "         10-xui-sandbox.conf: $whitespace_paths" >&2
-        echo "         The panel cannot write to them under the unit's sandbox." >&2
+        echo "警告：以下目录名包含空格，已被排除在外" >&2
+        echo "         10-xui-sandbox.conf：$whitespace_paths" >&2
+        echo "         在该单元的沙箱下，面板无法写入这些目录。" >&2
     fi
     line="${line# }"
     [[ -n "$line" ]] || return 1
@@ -493,8 +493,8 @@ _install_xui_service_unit() {
         return 1
     fi
     if ! _xui_service_write_paths_dropin; then
-        echo -e "${yellow}Warning: could not refresh ${xui_service}/x-ui.service.d/10-xui-sandbox.conf.${plain}"
-        echo -e "${yellow}If XUI_DB_FOLDER or XUI_LOG_FOLDER points outside /etc/x-ui and /var/log/x-ui, the panel may not be able to write to it under ProtectSystem=full.${plain}"
+        echo -e "${yellow}警告：无法刷新 ${xui_service}/x-ui.service.d/10-xui-sandbox.conf。${plain}"
+        echo -e "${yellow}如果 XUI_DB_FOLDER 或 XUI_LOG_FOLDER 指向 /etc/x-ui 和 /var/log/x-ui 之外，在 ProtectSystem=full 下，面板可能无法写入。${plain}"
     fi
     _xui_warn_unsupported_hardening
     return 0
@@ -510,7 +510,7 @@ require_repo_files() {
     for name in "$@"; do
         status=$(${curl_bin} -sIL --retry 3 --connect-timeout 15 -o /dev/null -w '%{http_code}' "https://raw.githubusercontent.com/MHSanaei/3x-ui/${ref}/${name}")
         if [[ "${status}" != "200" ]]; then
-            _fail "ERROR: ${name} is not available for ${ref} (HTTP ${status}). Update to a release that ships it, or to 'dev-latest'. The current installation is untouched."
+            _fail "错误：${name} 在 ${ref} 中不可用（HTTP ${status}）。请更新到包含该文件的发布版本，或更新到 'dev-latest'。当前安装未受影响。"
         fi
     done
 }
@@ -522,25 +522,25 @@ update_x-ui() {
 
     if [ -f "${xui_folder}/x-ui" ]; then
         current_xui_version=$(${xui_folder}/x-ui -v)
-        echo -e "${green}Current x-ui version: ${current_xui_version}${plain}"
+        echo -e "${green}当前 x-ui 版本：${current_xui_version}${plain}"
     else
-        _fail "ERROR: Current x-ui version: unknown"
+        _fail "错误：当前 x-ui 版本：未知"
     fi
 
-    echo -e "${green}Downloading new x-ui version...${plain}"
+    echo -e "${green}正在下载新版 x-ui...${plain}"
 
     # XUI_UPDATE_TAG lets the panel target a specific release tag (e.g. the
     # rolling dev-latest pre-release). Empty keeps the default latest-stable flow.
     if [[ -n "${XUI_UPDATE_TAG}" ]]; then
         tag_version="${XUI_UPDATE_TAG}"
-        echo -e "${green}Using update tag: ${tag_version}${plain}"
+        echo -e "${green}使用更新标签：${tag_version}${plain}"
     else
         tag_version=$(${curl_bin} -Ls "https://api.github.com/repos/MHSanaei/3x-ui/releases/latest" 2> /dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
         if [[ ! -n "$tag_version" ]]; then
-            _fail "ERROR: Failed to fetch x-ui version, it may be due to GitHub API restrictions, please try it later"
+            _fail "错误：获取 x-ui 版本失败，可能是 GitHub API 限制，请稍后重试"
         fi
     fi
-    echo -e "Got x-ui latest version: ${tag_version}, beginning the installation..."
+    echo -e "已获取 x-ui 最新版本：${tag_version}，开始安装..."
     # x-ui.rc and the unit files must come from the binary's own release; only the
     # rolling dev build tracks main. x-ui.sh ships in the archive and needs no GitHub check.
     script_ref="${tag_version}"
@@ -552,11 +552,11 @@ update_x-ui() {
     [[ $release == "alpine" ]] && require_repo_files "${script_ref}" "x-ui.rc"
     ${curl_bin} -fLRo ${xui_folder}-linux-$(arch).tar.gz https://github.com/MHSanaei/3x-ui/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz 2> /dev/null
     if [[ $? -ne 0 ]]; then
-        _fail "ERROR: Failed to download x-ui, please be sure that your server can access GitHub"
+        _fail "错误：下载 x-ui 失败，请确保服务器可以访问 GitHub"
     fi
     if [[ ! -s ${xui_folder}-linux-$(arch).tar.gz ]]; then
         rm ${xui_folder}-linux-$(arch).tar.gz -f > /dev/null 2>&1
-        _fail "ERROR: Downloaded x-ui release archive is empty, please be sure that your server can access GitHub"
+        _fail "错误：下载的 x-ui 发布包为空，请确保服务器可以访问 GitHub"
     fi
     # Releases publish <asset>.sha256 next to each archive. A mismatch or a
     # failed sidecar download aborts the update; only a 404 (releases
@@ -570,56 +570,56 @@ update_x-ui() {
         rm -f "${archive}.sha256"
         if [[ ! "${expected_sha256}" =~ ^[0-9a-f]{64}$ || "${expected_sha256}" != "${actual_sha256}" ]]; then
             rm -f "${archive}"
-            _fail "ERROR: Checksum mismatch for $(basename "${archive}"): expected ${expected_sha256:-<none>}, got ${actual_sha256}"
+            _fail "错误：$(basename "${archive}") 校验和不匹配：应为 ${expected_sha256:-<none>}，实际为 ${actual_sha256}"
         fi
-        echo -e "${green}Checksum verified: ${actual_sha256}${plain}"
+        echo -e "${green}校验和验证通过：${actual_sha256}${plain}"
     elif [[ "${sidecar_code}" == "404" ]]; then
         rm -f "${archive}.sha256"
-        echo -e "${yellow}No checksum published for this release, skipping verification${plain}"
+        echo -e "${yellow}此版本未发布校验和，跳过验证${plain}"
     else
         rm -f "${archive}.sha256" "${archive}"
-        _fail "ERROR: Failed to download the checksum for x-ui-linux-$(arch).tar.gz (HTTP ${sidecar_code})"
+        _fail "错误：下载 x-ui-linux-$(arch).tar.gz 的校验和失败（HTTP ${sidecar_code}）"
     fi
 
     # Download everything before x-ui stops, because its Xray and any panel egress bridge
     # stop with it. Alpine's init script is the only file the archive lacks.
     if [[ $release == "alpine" ]]; then
-        echo -e "${green}Downloading startup unit x-ui.rc...${plain}"
+        echo -e "${green}正在下载启动单元 x-ui.rc...${plain}"
         xui_rc_temp="/etc/init.d/x-ui.tmp.$$"
         rm -f "${xui_rc_temp}"
         ${curl_bin} -fLRo "${xui_rc_temp}" "https://raw.githubusercontent.com/MHSanaei/3x-ui/${script_ref}/x-ui.rc" > /dev/null 2>&1
         if [[ $? -ne 0 ]]; then
             rm -f "${xui_rc_temp}" "${archive}"
-            _fail "ERROR: Failed to download startup unit x-ui.rc, please be sure that your server can access GitHub"
+            _fail "错误：下载启动单元 x-ui.rc 失败，请确保服务器可以访问 GitHub"
         fi
         if [[ ! -s "${xui_rc_temp}" ]]; then
             rm -f "${xui_rc_temp}" "${archive}"
-            _fail "ERROR: Downloaded startup unit x-ui.rc is empty, please be sure that your server can access GitHub"
+            _fail "错误：下载的启动单元 x-ui.rc 为空，请确保服务器可以访问 GitHub"
         fi
     fi
 
     if [[ -e ${xui_folder}/ ]]; then
-        echo -e "${green}Stopping x-ui...${plain}"
+        echo -e "${green}正在停止 x-ui...${plain}"
         if [[ $release == "alpine" ]]; then
             if [ -f "/etc/init.d/x-ui" ]; then
                 rc-service x-ui stop > /dev/null 2>&1
                 rc-update del x-ui > /dev/null 2>&1
-                echo -e "${green}Removing old service unit version...${plain}"
+                echo -e "${green}正在删除旧版服务单元...${plain}"
                 rm -f /etc/init.d/x-ui > /dev/null 2>&1
             else
                 rm x-ui-linux-$(arch).tar.gz -f > /dev/null 2>&1
-                _fail "ERROR: x-ui service unit not installed."
+                _fail "错误：x-ui 服务单元未安装。"
             fi
         else
             if [ -f "${xui_service}/x-ui.service" ]; then
                 systemctl stop x-ui > /dev/null 2>&1
                 systemctl disable x-ui > /dev/null 2>&1
-                echo -e "${green}Removing old systemd unit version...${plain}"
+                echo -e "${green}正在删除旧版 systemd 单元...${plain}"
                 rm ${xui_service}/x-ui.service -f > /dev/null 2>&1
                 systemctl daemon-reload > /dev/null 2>&1
             else
                 rm x-ui-linux-$(arch).tar.gz -f > /dev/null 2>&1
-                _fail "ERROR: x-ui systemd unit not installed."
+                _fail "错误：x-ui systemd 单元未安装。"
             fi
         fi
         # Kill any leftover mtg (MTProto) sidecars. x-ui runs them outside its own
@@ -628,7 +628,7 @@ update_x-ui() {
         # The new panel respawns a clean mtg per inbound on next start.
         pkill -f 'mtg-linux-[^ ]* run ' > /dev/null 2>&1 || true
         pkill -f 'tuic-server.*-c .*bin/tuic/tuic_[0-9]+\.json' > /dev/null 2>&1 || true
-        echo -e "${green}Removing old x-ui version...${plain}"
+        echo -e "${green}正在删除旧版 x-ui...${plain}"
         rm ${xui_folder} -f > /dev/null 2>&1
         rm ${xui_folder}/x-ui.service -f > /dev/null 2>&1
         rm ${xui_folder}/x-ui.service.debian -f > /dev/null 2>&1
@@ -636,30 +636,30 @@ update_x-ui() {
         rm ${xui_folder}/x-ui.service.rhel -f > /dev/null 2>&1
         rm ${xui_folder}/x-ui -f > /dev/null 2>&1
         rm ${xui_folder}/x-ui.sh -f > /dev/null 2>&1
-        echo -e "${green}Removing old mtg version...${plain}"
+        echo -e "${green}正在删除旧版 mtg...${plain}"
         rm ${xui_folder}/bin/mtg-linux-$(arch) -f > /dev/null 2>&1
-        echo -e "${green}Removing old xray version...${plain}"
+        echo -e "${green}正在删除旧版 xray...${plain}"
         rm ${xui_folder}/bin/xray-linux-$(arch) -f > /dev/null 2>&1
-        echo -e "${green}Removing old README and LICENSE file...${plain}"
+        echo -e "${green}正在删除旧的 README 和 LICENSE 文件...${plain}"
         rm ${xui_folder}/bin/README.md -f > /dev/null 2>&1
         rm ${xui_folder}/bin/LICENSE -f > /dev/null 2>&1
         rm ${xui_folder}/bin/tuic-server -f > /dev/null 2>&1
         rm ${xui_folder}/bin/tuic -rf > /dev/null 2>&1
     else
         rm x-ui-linux-$(arch).tar.gz -f > /dev/null 2>&1
-        _fail "ERROR: x-ui not installed."
+        _fail "错误：x-ui 未安装。"
     fi
 
-    echo -e "${green}Installing new x-ui version...${plain}"
+    echo -e "${green}正在安装新版 x-ui...${plain}"
     tar zxvf x-ui-linux-$(arch).tar.gz > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
         rm x-ui-linux-$(arch).tar.gz -f > /dev/null 2>&1
-        _fail "ERROR: Failed to extract the x-ui release archive -- the previous installation has already been removed, so the panel will not start until this is fixed; try running the update again"
+        _fail "错误：解压 x-ui 发布包失败——旧安装已被删除，在问题解决前面板将无法启动；请再次运行更新"
     fi
     rm x-ui-linux-$(arch).tar.gz -f > /dev/null 2>&1
     cd x-ui > /dev/null 2>&1
     if [[ $? -ne 0 || ! -s x-ui ]]; then
-        _fail "ERROR: Extracted x-ui archive is missing the x-ui binary -- the previous installation has already been removed, so the panel will not start until this is fixed; try running the update again"
+        _fail "错误：解压后的 x-ui 压缩包中缺少 x-ui 二进制文件——旧安装已被删除，在问题解决前面板将无法启动；请再次运行更新"
     fi
     chmod +x x-ui > /dev/null 2>&1
 
@@ -683,36 +683,48 @@ update_x-ui() {
     fi
 
     # The archive's x-ui.sh is built from the same commit as the binary.
-    echo -e "${green}Installing x-ui.sh script...${plain}"
+    echo -e "${green}正在安装 x-ui.sh 脚本...${plain}"
     local xui_script_temp="/usr/bin/x-ui-temp.$$"
     if ! cp -f x-ui.sh "${xui_script_temp}" || ! mv -f "${xui_script_temp}" /usr/bin/x-ui; then
         rm -f "${xui_script_temp}"
-        _fail "ERROR: Failed to install x-ui.sh script"
+        _fail "错误：安装 x-ui.sh 脚本失败"
     fi
 
     chmod +x ${xui_folder}/x-ui.sh > /dev/null 2>&1
     chmod +x /usr/bin/x-ui > /dev/null 2>&1
+    # The fork's x-ui.sh carries the Chinese terminal; prefer it over the
+    # archive copy, but never fail the update when it is unreachable.
+    xui_fork_temp="/usr/bin/x-ui-fork.$$"
+    rm -f "${xui_fork_temp}"
+    if ${curl_bin} -fLR --retry 2 --retry-delay 2 --connect-timeout 15 --max-time 60 -o "${xui_fork_temp}" "https://raw.githubusercontent.com/lxffuq/3x-ui/main/x-ui.sh" > /dev/null 2>&1 && [[ -s "${xui_fork_temp}" ]]; then
+        mv -f "${xui_fork_temp}" /usr/bin/x-ui
+        chmod +x /usr/bin/x-ui
+        echo -e "${green}已使用中文版 x-ui.sh 菜单脚本。${plain}"
+    else
+        rm -f "${xui_fork_temp}"
+        echo -e "${yellow}无法从 fork 获取中文版 x-ui.sh，已保留安装包内的版本。${plain}"
+    fi
     mkdir -p /var/log/x-ui > /dev/null 2>&1
 
-    echo -e "${green}Changing owner...${plain}"
+    echo -e "${green}正在更改所有者...${plain}"
     chown -R root:root ${xui_folder} > /dev/null 2>&1
 
     if [ -f "${xui_folder}/bin/config.json" ]; then
-        echo -e "${green}Changing on config file permissions...${plain}"
+        echo -e "${green}正在更改配置文件权限...${plain}"
         chmod 640 ${xui_folder}/bin/config.json > /dev/null 2>&1
     fi
 
     # Finish the schema/data migrations before the service starts, so the service and
     # config_after_update's CLI calls never run them on the same database at once (#6728).
-    echo -e "${green}Migrating database...${plain}"
+    echo -e "${green}正在迁移数据库...${plain}"
     "${xui_folder}/x-ui" migrate
 
     if [[ $release == "alpine" ]]; then
-        echo -e "${green}Installing startup unit x-ui.rc...${plain}"
+        echo -e "${green}正在安装启动单元 x-ui.rc...${plain}"
         mv -f "${xui_rc_temp}" /etc/init.d/x-ui
         if [[ $? -ne 0 ]]; then
             rm -f "${xui_rc_temp}"
-            _fail "ERROR: Failed to install startup unit x-ui.rc"
+            _fail "错误：安装启动单元 x-ui.rc 失败"
         fi
         chmod +x /etc/init.d/x-ui > /dev/null 2>&1
         chown root:root /etc/init.d/x-ui > /dev/null 2>&1
@@ -720,9 +732,9 @@ update_x-ui() {
         rc-service x-ui start > /dev/null 2>&1
     else
         if [ -f "x-ui.service" ]; then
-            echo -e "${green}Installing systemd unit...${plain}"
+            echo -e "${green}正在安装 systemd 单元...${plain}"
             if ! _install_xui_service_unit "x-ui.service" "false"; then
-                echo -e "${red}Failed to copy x-ui.service${plain}"
+                echo -e "${red}复制 x-ui.service 失败${plain}"
                 exit 1
             fi
         else
@@ -730,7 +742,7 @@ update_x-ui() {
             case "${release}" in
                 ubuntu | debian | armbian)
                     if [ -f "x-ui.service.debian" ]; then
-                        echo -e "${green}Installing debian-like systemd unit...${plain}"
+                        echo -e "${green}正在安装 debian 系 systemd 单元...${plain}"
                         if _install_xui_service_unit "x-ui.service.debian" "false"; then
                             service_installed=true
                         fi
@@ -738,7 +750,7 @@ update_x-ui() {
                     ;;
                 arch | manjaro | parch)
                     if [ -f "x-ui.service.arch" ]; then
-                        echo -e "${green}Installing arch-like systemd unit...${plain}"
+                        echo -e "${green}正在安装 arch 系 systemd 单元...${plain}"
                         if _install_xui_service_unit "x-ui.service.arch" "false"; then
                             service_installed=true
                         fi
@@ -746,7 +758,7 @@ update_x-ui() {
                     ;;
                 *)
                     if [ -f "x-ui.service.rhel" ]; then
-                        echo -e "${green}Installing rhel-like systemd unit...${plain}"
+                        echo -e "${green}正在安装 rhel 系 systemd 单元...${plain}"
                         if _install_xui_service_unit "x-ui.service.rhel" "false"; then
                             service_installed=true
                         fi
@@ -756,7 +768,7 @@ update_x-ui() {
 
             # If service file not found in tar.gz, download from GitHub
             if [ "$service_installed" = false ]; then
-                echo -e "${yellow}Service files not found in tar.gz, downloading from GitHub...${plain}"
+                echo -e "${yellow}在 tar.gz 中未找到服务文件，正在从 GitHub 下载...${plain}"
                 case "${release}" in
                     ubuntu | debian | armbian)
                         service_unit_url="https://raw.githubusercontent.com/MHSanaei/3x-ui/${script_ref}/x-ui.service.debian"
@@ -770,7 +782,7 @@ update_x-ui() {
                 esac
 
                 if ! _install_xui_service_unit "$service_unit_url" "true"; then
-                    echo -e "${red}Failed to install x-ui.service from GitHub (${script_ref}) -- the release tarball did not ship one either${plain}"
+                    echo -e "${red}从 GitHub 安装 x-ui.service 失败（${script_ref}）——发布包中也没有该文件${plain}"
                     exit 1
                 fi
             fi
@@ -789,29 +801,29 @@ update_x-ui() {
     # Never fatal.
     setup_fail2ban
 
-    echo -e "${green}x-ui ${tag_version}${plain} updating finished, it is running now..."
+    echo -e "${green}x-ui ${tag_version}${plain} 更新完成，正在运行..."
     echo -e ""
     echo -e "┌───────────────────────────────────────────────────────┐
-│  ${blue}x-ui control menu usages (subcommands):${plain}              │
+│  ${blue}x-ui 控制菜单用法（子命令）：${plain}                        │
 │                                                       │
-│  ${blue}x-ui${plain}              - Admin Management Script          │
-│  ${blue}x-ui start${plain}        - Start                            │
-│  ${blue}x-ui stop${plain}         - Stop                             │
-│  ${blue}x-ui restart${plain}      - Restart                          │
-│  ${blue}x-ui status${plain}       - Current Status                   │
-│  ${blue}x-ui settings${plain}     - Current Settings                 │
-│  ${blue}x-ui enable${plain}       - Enable Autostart on OS Startup   │
-│  ${blue}x-ui disable${plain}      - Disable Autostart on OS Startup  │
-│  ${blue}x-ui log${plain}          - Check logs                       │
-│  ${blue}x-ui banlog${plain}       - Check Fail2ban ban logs          │
-│  ${blue}x-ui update${plain}       - Update                           │
-│  ${blue}x-ui legacy${plain}       - Legacy version                   │
-│  ${blue}x-ui install${plain}      - Install                          │
-│  ${blue}x-ui uninstall${plain}    - Uninstall                        │
+│  ${blue}x-ui${plain}              - 管理脚本                         │
+│  ${blue}x-ui start${plain}        - 启动                             │
+│  ${blue}x-ui stop${plain}         - 停止                             │
+│  ${blue}x-ui restart${plain}      - 重启                             │
+│  ${blue}x-ui status${plain}       - 当前状态                         │
+│  ${blue}x-ui settings${plain}     - 当前设置                         │
+│  ${blue}x-ui enable${plain}       - 开机自启                         │
+│  ${blue}x-ui disable${plain}      - 关闭开机自启                     │
+│  ${blue}x-ui log${plain}          - 查看日志                         │
+│  ${blue}x-ui banlog${plain}       - 查看 Fail2ban 封禁日志           │
+│  ${blue}x-ui update${plain}       - 更新                             │
+│  ${blue}x-ui legacy${plain}       - 旧版本                           │
+│  ${blue}x-ui install${plain}      - 安装                             │
+│  ${blue}x-ui uninstall${plain}    - 卸载                             │
 └───────────────────────────────────────────────────────┘"
 }
 
-echo -e "${green}Running...${plain}"
+echo -e "${green}正在运行...${plain}"
 require_writable_update_paths
 install_base
 update_x-ui $1
