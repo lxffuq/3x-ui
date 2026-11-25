@@ -380,7 +380,7 @@ confirm_menu_webbasepath() {
         case "$answer" in
             [yY] | [yY][eE][sS]) return 0 ;;
             [nN] | [nN][oO] | '') return 1 ;;
-            *) echo 'Please answer yes or no (Enter defaults to No).' >&2 ;;
+            *) echo '请输入 yes 或 no（直接回车默认为 No）。' >&2 ;;
         esac
     done
 }
@@ -407,19 +407,19 @@ reset_webbasepath() {
     fi
 
     local selection config_webBasePath current_path saved_path settings_output
-    echo 'Choose Web Base Path configuration:'
-    echo '1. Generate a random Web Base Path'
-    echo '2. Set a custom Web Base Path'
-    echo '0. Cancel'
+    echo '请选择 Web 访问前缀配置：'
+    echo '1. 生成随机 Web 访问前缀'
+    echo '2. 设置自定义 Web 访问前缀'
+    echo '0. 取消'
     while true; do
-        if ! read -rp 'Please enter your selection [0-2]: ' selection; then
-            echo 'Operation canceled.'
+        if ! read -rp '请输入你的选择 [0-2]：' selection; then
+            echo '操作已取消。'
             return 0
         fi
         case "$selection" in
             1)
                 if ! config_webBasePath=$(gen_random_string 18) || [[ ! "$config_webBasePath" =~ ^[A-Za-z0-9]{18}$ ]]; then
-                    echo 'Failed to generate a random Web Base Path.' >&2
+                    echo '生成随机 Web 访问前缀失败。' >&2
                     return 1
                 fi
                 config_webBasePath=$(normalize_menu_webbasepath "$config_webBasePath") || return 1
@@ -427,33 +427,33 @@ reset_webbasepath() {
                 ;;
             2)
                 while true; do
-                    if ! IFS= read -rp 'Enter your custom Web Base Path: ' config_webBasePath; then
-                        echo 'Operation canceled.'
+                    if ! IFS= read -rp '请输入自定义 Web 访问前缀：' config_webBasePath; then
+                        echo '操作已取消。'
                         return 0
                     fi
                     if config_webBasePath=$(normalize_menu_webbasepath "$config_webBasePath"); then
                         break
                     fi
-                    echo 'Invalid Web Base Path. Use letters, digits, hyphens or underscores in nonempty segments separated by single slashes.' >&2
+                    echo 'Web 访问前缀无效：请用字母、数字、连字符或下划线组成非空段，并以单个斜杠分隔。' >&2
                 done
                 break
                 ;;
-            0) echo 'Operation canceled.'; return 0 ;;
-            *) echo 'Invalid selection. Choose 0, 1 or 2.' >&2 ;;
+            0) echo '操作已取消。'; return 0 ;;
+            *) echo '选择无效，请选择 0、1 或 2。' >&2 ;;
         esac
     done
 
     if ! current_path=$(read_menu_webbasepath); then
-        echo 'Failed to read the current Web Base Path; no settings changed.' >&2
+        echo '读取当前 Web 访问前缀失败，未更改任何设置。' >&2
         return 1
     fi
     if [[ "$current_path" == "$config_webBasePath" ]]; then
-        echo 'No change is necessary; this Web Base Path is already configured.'
+        echo '无需更改，此 Web 访问前缀已配置。'
         return 0
     fi
-    echo -e "Your Web Base Path will be: ${green}${config_webBasePath}${plain}"
-    if ! confirm_menu_webbasepath 'Apply this Web Base Path?'; then
-        echo 'Operation canceled.'
+    echo -e "Web 访问前缀将设置为：${green}${config_webBasePath}${plain}"
+    if ! confirm_menu_webbasepath '应用此 Web 访问前缀吗？'; then
+        echo '操作已取消。'
         return 0
     fi
 
